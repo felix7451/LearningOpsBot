@@ -104,6 +104,8 @@ async def topic_selected(callback: types.CallbackQuery, state: FSMContext):
 
         first_question = await model_response(topic, "Hello! Give me the first question for knowledge checking.")
 
+        await state.update_data(last_question=first_question)
+
         await callback.message.answer(first_question)
     await callback.answer()
 
@@ -112,8 +114,20 @@ async def handle_answer(message: types.Message, state: FSMContext):
     user_data = await state.get_data()
     topic = user_data.get("chosen_topic")
     
+    last_question = user_data.get("last_question")
+    
     await message.answer("🔄 Checking your answer...")
-    ai_feedback = await model_response(topic, message.text)
+    
+    prompt_for_ai = (
+        f"Your previous question was: {last_question}\n"
+        f"User's actual answer: {message.text}\n\n"
+        f"Task: Strictly evaluate the user's answer based on your rules. "
+        f"If the answer is flawed, mark it as '❌ Incorrect'. Then ask the next question."
+    )
+    
+    ai_feedback = await model_response(topic, prompt_for_ai)
+    
+    await state.update_data(last_question=ai_feedback)
     
     await message.answer(ai_feedback)
 
